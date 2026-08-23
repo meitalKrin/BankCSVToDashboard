@@ -44,10 +44,14 @@ days, not weeks.
 
 Delivers: a working self-hosted Actual you could use today with manual entry.
 
+**Full step-by-step version with verification commands and gotchas:
+[`ops-runbook.md`](ops-runbook.md).** The list below is the index; the runbook is
+the thing to actually work through.
+
 - [ ] **1.1** Flash Raspberry Pi OS **Lite 64-bit**, headless, SSH keys only, no password auth
 - [ ] **1.2** Enable zram swap; disable unneeded services; set `TZ=Asia/Jerusalem`
 - [ ] **1.3** Install Docker + compose plugin. **Do not build images on this box**
-- [ ] **1.4** Decide volume placement — USB storage strongly preferred over SD (**R6**)
+- [ ] **1.4** Decide volume placement and record the reasoning — on a Zero 2 W, a good A2 card plus tested backups usually beats fighting USB power (**R6**, [runbook B1](ops-runbook.md#b1--decide-where-the-data-lives))
 - [ ] **1.5** Run `actual-server` from compose: pinned tag, named volume, `restart: unless-stopped`, `mem_limit`
 - [ ] **1.6** Create the budget file in the browser; note the **sync ID** — the bridge needs it
 - [ ] **1.7** Set up the accounts you'll actually use, and note exact names for `AQUEDUCT_CARD_MAP`
@@ -55,7 +59,9 @@ Delivers: a working self-hosted Actual you could use today with manual entry.
 - [ ] **1.9** `tailscale cert` for a real TLS certificate on the `ts.net` name
 - [ ] **1.10** Nightly backup job: both volumes → encrypted archive → off-box
 - [ ] **1.11** **Perform a real restore onto a fresh SD card.** An untested backup is not a backup (**NFR-6**)
-- [ ] **1.12** Write down what you did, in your own words — this is the artefact that proves 1.11 is repeatable
+- [ ] **1.12** Docker log rotation in `/etc/docker/daemon.json` — before it fills the card
+- [ ] **1.13** Backup-failure visibility: break it on purpose and confirm you find out
+- [ ] **1.14** `deploy/NOTES.md` in your own words — the artefact that proves 1.11 is repeatable
 
 ---
 

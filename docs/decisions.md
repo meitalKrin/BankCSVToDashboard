@@ -152,6 +152,25 @@ certificate-pinning workarounds.
 dependency on a third-party coordination service. The durable phone-side queue
 means a Tailscale outage delays events rather than losing them.
 
+**Can it be deferred and added after a hardware upgrade?** Yes — the switch is a
+base-URL change in the app plus installing one daemon, because the durable queue
+means LAN-only is a *correct* system, just a slower one. But deferring it is not
+free, and it is **not** the recommended path:
+
+- Dropping Tailscale moves cost onto the app side rather than removing it.
+  Android blocks cleartext HTTP by default and distrusts self-signed
+  certificates, so a LAN-only setup needs either a network-security-config
+  cleartext exception or a custom trust store. `tailscale cert` gives a genuine
+  Let's Encrypt certificate for the `ts.net` name and makes that entire problem
+  disappear.
+- It is also how you SSH into the Pi from anywhere, which is worth a lot while
+  learning the ops side.
+- The memory measurement in Spike 0.3 should be taken *with* `tailscaled`
+  running, or the number doesn't describe the system being built.
+
+So: install it in Epic 1. Removing it stays the documented contingency if 0.3
+comes back tight — not the starting position.
+
 ---
 
 ## D10 — Parse patterns are versioned data, not code

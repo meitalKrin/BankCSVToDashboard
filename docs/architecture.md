@@ -547,10 +547,20 @@ published beyond the tailnet.
 
 ### What you own operationally
 
-Pi OS 64-bit Lite · zram · Docker + compose · volume placement (USB preferred,
-R6) · Tailscale on Pi and phone · `tailscale cert` for TLS · nightly encrypted
-backup of both volumes off-box · **a restore you have actually performed** ·
-image updates (pinned tags, not `latest`) · watching `/healthz`.
+Pi OS 64-bit Lite · zram · Docker + compose · volume placement (see below) ·
+Tailscale on Pi and phone · `tailscale cert` for TLS · nightly encrypted backup
+of both volumes off-box · **a restore you have actually performed** · image
+updates (pinned tags, not `latest`) · watching `/healthz`.
+
+Step-by-step checkpoints with verification commands are in
+[`ops-runbook.md`](ops-runbook.md).
+
+**On storage (R6):** USB SSD has far better write endurance, but a Zero 2 W has a
+single micro-USB data port and a tight power budget, so it needs an OTG adapter
+and realistically a powered hub. On this hardware a quality A2 / high-endurance
+microSD plus a genuinely tested backup is the better trade while learning — card
+wear is a slow risk, a missing backup is an instant one. Revisit on a hardware
+upgrade.
 
 ### What you must never do
 

@@ -31,6 +31,7 @@ follows from holding both of those facts at once.
 | [`docs/prd.md`](docs/prd.md) | What we are building and why — scope, requirements, success criteria |
 | [`docs/architecture.md`](docs/architecture.md) | How it works — components, data model, contracts, reconciliation, ops seam |
 | [`docs/backlog.md`](docs/backlog.md) | The task list, by epic, with owners and dependencies |
+| [`docs/ops-runbook.md`](docs/ops-runbook.md) | **Your lane** — the Pi/Docker/backup checkpoints, with verification commands |
 | [`docs/decisions.md`](docs/decisions.md) | Decision log — what was chosen and what was rejected |
 
 ## Who does what

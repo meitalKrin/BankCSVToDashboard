@@ -1,0 +1,23 @@
+# secrets — never commit
+.env
+*.key
+*.keystore
+*.jks
+
+# bridge
+__pycache__/
+*.py[cod]
+.venv/
+*.sqlite
+*.sqlite-journal
+/deploy/data/
+
+# android
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/local.properties
+*.apk
+
+# statement files are real financial data — only redacted fixtures belong in git
+/bridge/tests/fixtures/**/*.raw.*

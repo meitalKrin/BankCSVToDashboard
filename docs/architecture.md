@@ -280,9 +280,26 @@ Mitigations, in order of importance:
    or pull prebuilt. A Gradle or pip build on-device will OOM.
 5. **Single uvicorn worker.** Concurrency requirements here are one phone.
 
-If Spike 0.3 says it doesn't fit: move `actual-server` to a beefier box and keep
-the bridge on the Pi, or move the whole stack to a Pi 4. Nothing in the design
-changes — only where containers land.
+### If Spike 0.3 comes back tight
+
+Work this ladder **in order**, cheapest and least-destructive first. Nothing in
+the design changes at any rung — only tuning, or where containers land.
+
+1. **Tune what's already there.** Raise the zram device size, tighten
+   `mem_limit`s, strip unused host services. Most "tight" results are fixed here.
+2. **Cut the flush interval's peak**, not its frequency — smaller batches mean a
+   smaller transient allocation during the Actual session.
+3. **Drop `tailscaled`** (~30–50 MB). Fall back to LAN-only queue-and-flush.
+   This is a real cost, not a free win: you lose valid TLS (so the Android app
+   needs a cleartext exception), and you lose SSH-from-anywhere. See
+   [D9](decisions.md#d9--tailscale-for-transport-the-pi-is-never-internet-exposed).
+4. **Move `actual-server` to another always-on machine**, keep the bridge on the Pi.
+5. **Move the whole stack to a Pi 4 or similar.** Ends the conversation permanently.
+
+**Important: measure with everything installed, including Tailscale.** A number
+collected from a system missing a component doesn't describe the system being
+built. Install the full stack, measure, *then* decide whether anything needs to
+come out.
 
 ## 5. Data model
 

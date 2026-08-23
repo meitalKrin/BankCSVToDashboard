@@ -232,9 +232,23 @@ landing in the wrong account.
 
 ## Stage E — network
 
-Tailscale stays in the plan (see [D9](decisions.md#d9--tailscale-for-transport-the-pi-is-never-internet-exposed)).
-It's also the thing that lets you SSH into the Pi from anywhere, which you will
-appreciate a lot while learning.
+> **"Isn't Tailscale too heavy for a Zero 2 W?"** No — **install it.** It costs
+> roughly 30–50 MB of 512 MB. That's real but it is not the problem, and it buys
+> valid TLS (which removes an entire class of Android networking pain) plus
+> SSH-from-anywhere.
+>
+> I listed "drop Tailscale" first among the fallbacks if the memory measurement
+> comes back tight, which made it look like a recommendation. It isn't — it's
+> rung 3 of 5 on the ladder in
+> [architecture §4](architecture.md#if-spike-03-comes-back-tight), after tuning
+> zram and memory limits.
+>
+> And the reason it must go in **now**: you cannot find out whether it fits by
+> leaving it out. Build the real system, measure it in G4, *then* decide whether
+> anything needs to come out.
+
+Tailscale is also what lets you SSH into the Pi from anywhere, which you will
+appreciate a lot while learning the ops side.
 
 ### E1 · Tailscale on Pi and phone
 

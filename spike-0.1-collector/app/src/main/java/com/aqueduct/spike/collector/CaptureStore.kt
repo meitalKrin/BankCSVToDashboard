@@ -16,7 +16,7 @@ import org.json.JSONArray
  * pick up WhatsApp and SMS, and that has to be removable without uninstalling,
  * because uninstalling takes the corpus with it).
  */
-class CaptureStore(context: Context) : SQLiteOpenHelper(
+class CaptureStore private constructor(context: Context) : SQLiteOpenHelper(
     context.applicationContext,
     DB_NAME,
     null,
@@ -136,12 +136,28 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(
         }
     }
 
-    private companion object {
-        const val DB_NAME = "captures.db"
-        const val DB_VERSION = 1
-        const val TABLE = "capture"
-        const val COLUMNS =
+    companion object {
+        private const val DB_NAME = "captures.db"
+        private const val DB_VERSION = 1
+        private const val TABLE = "capture"
+        private const val COLUMNS =
             "id, captured_at_utc, package_name, posted_at_utc, notification_key, " +
                 "title, text, big_text, sub_text, extras_keys, flags"
+
+        @Volatile
+        private var instance: CaptureStore? = null
+
+        /**
+         * One helper for the whole process, shared by the listener and the UI.
+         *
+         * Two helpers on the same file are two connections, and a write racing a
+         * read can come back SQLITE_BUSY. On the listener side that is a dropped
+         * capture — the one failure this app cannot afford, because a tap that
+         * was not recorded cannot be recovered.
+         */
+        fun get(context: Context): CaptureStore =
+            instance ?: synchronized(this) {
+                instance ?: CaptureStore(context).also { instance = it }
+            }
     }
 }

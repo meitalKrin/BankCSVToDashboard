@@ -23,7 +23,7 @@ class CollectorService : NotificationListenerService() {
 
     override fun onCreate() {
         super.onCreate()
-        store = CaptureStore(this)
+        store = CaptureStore.get(this)
         filter = CaptureFilter(this)
     }
 

@@ -59,7 +59,7 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        store = CaptureStore(this)
+        store = CaptureStore.get(this)
         filter = CaptureFilter(this)
 
         binding.notificationAccessButton.setOnClickListener {

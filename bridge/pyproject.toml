@@ -1,0 +1,13 @@
+[project]
+name = "aqueduct-bridge"
+version = "0.1.0"
+description = "Wallet tap ingest and statement reconciliation for Actual Budget"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

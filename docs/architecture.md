@@ -201,17 +201,29 @@ Every transaction in Actual has one of three provenances:
 On statement ingest, for each statement row, scoped to a single account:
 
 ```
-candidates = pending WALLET txns where
-    amount_minor == row.amount_minor
-    AND row.date >= wallet.date
-    AND row.date <= wallet.date + N days      (N default 5)
-    AND wallet.currency == account.currency
+row and tap are COMPATIBLE when
+    row.account      == tap.account
+    AND row.currency == tap.currency
+    AND row.amount_minor == tap.amount_minor         (exact, minor units)
+    AND tap.date <= row.date <= tap.date + N days    (N default 5)
 
-if len(candidates) == 0 → insert row as a new cleared transaction
-if len(candidates) == 1 → MERGE
-if len(candidates)  > 1 → pick nearest date only if strictly unique,
-                          otherwise flag BOTH for review, merge nothing
+build the bipartite compatibility graph, take its connected components:
+
+  1 row, 0 taps                  → INSERT the row as a new cleared transaction
+  1 row, 1 tap                   → MERGE
+  anything else                  → FLAG every row and tap in the component,
+                                    merge nothing
 ```
+
+**A merge requires *mutual* uniqueness**, not just one candidate. It is not
+enough that this row has exactly one compatible tap — that tap must also have no
+other compatible row. Ambiguity in *either* direction flags everything involved.
+
+*(An earlier draft of this section said "pick nearest date only if strictly
+unique". That contradicted FR-25 and the prose two paragraphs below it, and it
+was wrong: with two ₪45 taps and one statement row, the nearer tap is still a
+guess, and guessing wrong writes the wrong payee onto a real transaction.
+Corrected when the reconciler was implemented and tested.)*
 
 **MERGE** means: keep the statement transaction as truth; if the tap's payee is
 richer than the statement's (statement descriptors are often terse issuer

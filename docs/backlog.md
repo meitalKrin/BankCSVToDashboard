@@ -188,13 +188,13 @@ Delivers: a ledger that matches the bank to the agora.
 - [ ] **5.3 [DEV]** Reject-loudly validation: wrong shape → 422, nothing written → FR-21
 - [ ] **5.4 [DEV]** `POST /v1/statements/{issuer}/{period}/upload` + a minimal upload page
 - [ ] **5.5 [DEV]** Write statement rows as cleared transactions → FR-22
-- [ ] **5.6 [DEV]** Matching algorithm: amount-equal + date window + same currency → FR-23
-- [ ] **5.7 [DEV]** Merge on unique match; carry over richer payee; delete the placeholder → FR-24
-- [ ] **5.8 [DEV]** Flag on ambiguity; **never** auto-merge multiple candidates → FR-25
-- [ ] **5.9 [DEV]** Currency-mismatch path: no amount match, flag for review → FR-26
-- [ ] **5.10 [DEV]** Orphan sweep: unmatched taps past the age threshold become exceptions → FR-27
+- [x] **5.6 [DEV]** Matching algorithm: amount-equal + date window + same currency → FR-23 ✅ `bridge/aqueduct/reconcile.py`
+- [x] **5.7 [DEV]** Merge on unique match; carry over richer payee; delete the placeholder → FR-24 ✅
+- [x] **5.8 [DEV]** Flag on ambiguity; **never** auto-merge multiple candidates → FR-25 ✅ strengthened to *mutual* uniqueness
+- [x] **5.9 [DEV]** Currency-mismatch path: no amount match, flag for review → FR-26 ✅
+- [x] **5.10 [DEV]** Orphan sweep: unmatched taps past the age threshold become exceptions → FR-27 ✅
 - [ ] **5.11 [DEV]** `reconciliation_log` append-only audit trail
-- [ ] **5.12 [DEV]** Reconciler test suite: exact, near-date, two-identical-amounts, FX, orphan, refund
+- [x] **5.12 [DEV]** Reconciler test suite ✅ 35 tests, including two invariants over 400 generated scenarios each
 - [ ] **5.13 [BOTH]** **Full-cycle proof:** ingest a real statement, confirm balance matches exactly and zero duplicates → **G3**
 
 ---

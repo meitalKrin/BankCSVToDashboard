@@ -16,11 +16,7 @@ whole epic — if 0.1 fails, the project changes shape and we should find out in
 days, not weeks.
 
 - [ ] **0.1 [DEV+OPS] Capture real Wallet notification strings** → retires **R1**
-  - [DEV] Throwaway APK: log every notification from all packages, export to a file
-  - [OPS] Sideload, grant notification access, make 3–5 real tap-to-pay purchases
-  - [OPS] Also capture a refund and a declined payment if you can engineer one
-  - [BOTH] Confirm the Wallet package name, whether a notification fires *every* time, which field holds the amount, and whether the merchant and card last-4 are present
-  - **Exit:** a committed corpus of real strings, or a documented finding that Wallet doesn't notify usefully here (which changes the project)
+  - Full spec below. This is a **throwaway** — it will be deleted once the corpus exists.
 - [ ] **0.2 [DEV] Verify `actualpy` ↔ `actual-server` on arm64** → retires **R2**
   - Stand up `actual-server` in Docker, pin an exact version
   - From Python, authenticate, open the budget, create an uncleared transaction with an `imported_id`, read it back, delete it
@@ -37,6 +33,70 @@ days, not weeks.
   - Capture the "statement ready" email — exact sender address and subject line
   - **Exit:** enough to author a parsing profile and a statement-detection rule
 - [ ] **0.5 [BOTH] Answer the open questions** in [prd.md §11](prd.md#11-open-questions) (Q1–Q4)
+
+### Spike 0.1 spec — the notification collector
+
+A separate, disposable app. It exists only to answer questions we are currently
+guessing at. **Build exactly this and nothing more** — every feature added here is
+a feature thrown away later.
+
+**In scope**
+
+- `NotificationListenerService` recording, per notification: package, post time,
+  notification key, `android.title`, `android.text`, `android.bigText`,
+  `android.subText`, the **full list of extras keys present**, and the flags
+  (including `FLAG_GROUP_SUMMARY`).
+- Local append-only storage of those records.
+- Export as JSONL through `ACTION_CREATE_DOCUMENT` (Storage Access Framework) —
+  the user picks the destination, so **no storage permission is needed**.
+- A capture filter: a small allowlist by default (Wallet candidates + Gmail),
+  with a temporary **"capture everything"** toggle for discovering the real
+  package name.
+- Onboarding that links to the notification-access settings screen and to the
+  battery-optimisation exemption.
+- A live count of captured events on screen, so you can see it's alive.
+
+**Explicitly NOT in scope** — no parsing, no regex, no amounts, no queue, no
+Actual, no bridge, no `deploy/` changes.
+
+**No network. At all.**
+The `INTERNET` permission must be **absent from the manifest**. This app reads
+every notification on the phone; it should be *provably incapable* of sending
+them anywhere. That is a property you can verify by reading one file, and it is
+worth more than any assurance in a README.
+
+**Two gotchas that will cost you the corpus if missed**
+
+1. **Use a stable signing key across CI runs.** `assembleDebug` is fine — a
+   throwaway needs no release keystore — but GitHub Actions generates a *fresh*
+   debug keystore per run by default, and Android refuses to install a build
+   signed by a different key over an existing one. Store one debug keystore as a
+   base64 repository secret and decode it in the workflow.
+2. **App-private storage is destroyed on uninstall.** If you ever have to
+   uninstall to install a new build, the corpus goes with it. Export before every
+   reinstall, and treat the exported file as the real artefact.
+
+**Privacy.** "Capture everything" will pick up WhatsApp, SMS, email previews —
+everything. Use it only briefly to identify the Wallet package, then switch back
+to the allowlist and purge what you collected in the meantime.
+
+**Exit criteria — the spike is done when we have**
+
+- [ ] ≥5 real tap-to-pay captures, ideally including a **refund**, a
+      **foreign-currency** purchase, an amount **over ₪1,000** (to see the
+      thousands separator), and a **long Hebrew merchant name**
+- [ ] the confirmed Google Wallet package name
+- [ ] which extras field actually carries the amount, the merchant, and the card
+      last-4 (if it is present at all)
+- [ ] an answer to whether a notification fires on **every** tap
+- [ ] one captured Gmail "statement ready" notification, with exact sender and
+      subject — this feeds 0.4 and Epic 4 for free
+- [ ] the corpus committed as the parser test fixture (redact what you need to)
+- [ ] **or**: a documented finding that Wallet does not notify usefully here —
+      which changes the project, and is exactly why this spike is first
+
+**Collect over several days.** One evening of taps gives one merchant's format.
+Variety is the whole point.
 
 ---
 

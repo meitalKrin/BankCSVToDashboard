@@ -19,5 +19,15 @@ __pycache__/
 /android/local.properties
 *.apk
 
+# spike 0.1 — throwaway collector app
+/spike-0.1-collector/.gradle/
+/spike-0.1-collector/build/
+/spike-0.1-collector/app/build/
+/spike-0.1-collector/local.properties
+
+# exported capture corpora are raw personal notification text until redacted
+/spike-0.1-collector/*.jsonl
+aqueduct-capture-*.jsonl
+
 # statement files are real financial data — only redacted fixtures belong in git
 /bridge/tests/fixtures/**/*.raw.*

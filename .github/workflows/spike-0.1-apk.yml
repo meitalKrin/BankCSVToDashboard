@@ -1,0 +1,150 @@
+# Spike 0.1 — builds the throwaway notification collector into an installable APK.
+#
+# There is no Android Studio anywhere in this project. This workflow is the only
+# build, and its output is the only artefact: a debug APK, signed with a *stable*
+# key restored from a repository secret, attached to a pre-release you can open
+# and install directly from the phone.
+name: spike 0.1 APK
+
+on:
+  push:
+    branches:
+      - 'claude/spike-0.1-notification-capture-*'
+      - 'spike/0.1-*'
+    paths:
+      - 'spike-0.1-collector/**'
+      - '.github/workflows/spike-0.1-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spike-0.1-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: spike-0.1-collector
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Gotcha #1 from the spike spec. Actions generates a fresh debug keystore
+      # per run by default, and Android refuses to install a build signed by a
+      # different key over an existing one — so an upgrade would mean uninstall,
+      # and uninstall destroys the corpus. One keystore, held as a secret, used
+      # by every run.
+      #
+      # Without the secret the build still runs (so a compile error is still
+      # caught), but nothing installable is published and the run ends red.
+      - name: Restore the stable debug signing key
+        id: signing
+        env:
+          DEBUG_KEYSTORE_B64: ${{ secrets.DEBUG_KEYSTORE_B64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DEBUG_KEYSTORE_B64:-}" ]; then
+            echo "stable=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::DEBUG_KEYSTORE_B64 is not set — this run will compile but will not publish an installable APK. See spike-0.1-collector/README.md for the one-time setup."
+            exit 0
+          fi
+          mkdir -p ~/.android
+          printf '%s' "$DEBUG_KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
+          keytool -list -keystore ~/.android/debug.keystore \
+            -storepass android -alias androiddebugkey > /dev/null
+          echo "Signing key fingerprint — must be identical on every run:"
+          keytool -list -v -keystore ~/.android/debug.keystore \
+            -storepass android -alias androiddebugkey | grep -i 'SHA256'
+          echo "stable=true" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: ./gradlew --no-daemon assembleDebug
+
+      # The no-network property is the reason this app is allowed to read every
+      # notification on the phone. Assert it against the built APK, not against
+      # the source: a library manifest can add a permission during the merge,
+      # and then it would be true of the file you install.
+      - name: Assert the APK cannot reach the network
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          AAPT2="$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort -V | tail -1)"
+          echo "Permissions in $APK:"
+          "$AAPT2" dump permissions "$APK" | tee /tmp/permissions.txt
+          if grep -qE 'android\.permission\.(INTERNET|ACCESS_NETWORK_STATE)' /tmp/permissions.txt; then
+            echo "::error::The built APK requests a network permission. Spike 0.1 must be provably incapable of sending captured notifications anywhere."
+            exit 1
+          fi
+          echo "OK — no network permission in the built APK."
+
+      - name: Name the APK after the build
+        id: apk
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.signing.outputs.stable }}" = "true" ]; then
+            NAME="aqueduct-collector-spike0.1-build${{ github.run_number }}.apk"
+          else
+            NAME="UNSTABLE-KEY-DO-NOT-INSTALL-build${{ github.run_number }}.apk"
+          fi
+          cp app/build/outputs/apk/debug/app-debug.apk "$NAME"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "path=spike-0.1-collector/$NAME" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk.outputs.name }}
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error
+
+      # The artifact above downloads as a zip, which is awkward on a phone. This
+      # gives you a direct .apk link you can open in the phone's browser.
+      - name: Publish a pre-release you can install from the phone
+        if: steps.signing.outputs.stable == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="spike-0.1-build${{ github.run_number }}"
+          printf '%s\n' \
+            'Throwaway notification collector for spike 0.1.' \
+            '' \
+            '**No network.** The INTERNET permission is absent from the manifest, and CI asserts that against this exact APK before publishing it.' \
+            '' \
+            'To install: open this page on the phone, download the `.apk`, and allow installs from unknown sources. Then grant notification access and the battery-optimisation exemption from inside the app.' \
+            '' \
+            '**Export before you uninstall anything** - app-private storage is destroyed with the app, and the exported JSONL is the real artefact.' \
+            > /tmp/notes.md
+          gh release create "$TAG" "${{ steps.apk.outputs.name }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Spike 0.1 collector - build ${{ github.run_number }}" \
+            --prerelease \
+            --notes-file /tmp/notes.md
+          echo "Installable APK: $(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Require the stable signing key
+        if: steps.signing.outputs.stable != 'true'
+        run: |
+          {
+            echo "### No installable APK was published"
+            echo
+            echo "The build compiled, but the \`DEBUG_KEYSTORE_B64\` repository secret is not set."
+            echo "Every run would otherwise sign with a different key, and Android refuses to"
+            echo "install a build signed by a different key over the one already on the phone —"
+            echo "which would mean uninstalling, which destroys the captured corpus."
+            echo
+            echo "Set the secret (Settings → Secrets and variables → Actions), then re-run."
+            echo "See \`spike-0.1-collector/README.md\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1

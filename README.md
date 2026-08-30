@@ -51,6 +51,12 @@ You should never need to read Python to write the compose file.
 
 ## Status
 
-Planning. Nothing is built yet. Start at
+Planning, plus the first spike. [`spike-0.1-collector/`](spike-0.1-collector/) is
+a throwaway Android app that captures raw notification text and exports it as
+JSONL — built by GitHub Actions, no Android Studio required. It exists only to
+retire R1 (we do not know what Google Wallet actually posts) and gets deleted
+once the corpus exists.
+
+Otherwise: nothing is built yet. Start at
 [`docs/backlog.md` → Epic 0](docs/backlog.md#epic-0--spikes-de-risk-before-building-anything),
 which exists to kill the four assumptions that could sink the whole design.

@@ -1,0 +1,43 @@
+<resources>
+    <string name="app_name">Aqueduct Collector</string>
+    <string name="service_label">Notification collector (spike 0.1)</string>
+
+    <string name="no_network">No network. The INTERNET permission is absent from the manifest, so this app cannot send a notification anywhere, to anyone, ever.</string>
+
+    <string name="onboarding_title">Getting started</string>
+    <string name="onboarding_body">1. Grant notification access below.\n2. Grant the battery-optimisation exemption, or Android will eventually stop waking the listener.\n3. Tap to pay. Watch the count go up.\n4. Export to a file before you uninstall anything — app storage is destroyed on uninstall.</string>
+
+    <string name="notification_access">Notification access</string>
+    <string name="battery_exemption">Battery optimisation</string>
+    <string name="granted">granted</string>
+    <string name="not_granted">NOT granted</string>
+    <string name="exempt">exempt</string>
+    <string name="not_exempt">NOT exempt</string>
+    <string name="open_settings">Open settings</string>
+
+    <string name="captured_count">Captured: %1$d</string>
+    <string name="last_capture">Last: %1$s</string>
+    <string name="last_capture_none">Last: nothing captured yet</string>
+    <string name="per_package_title">By package</string>
+
+    <string name="capture_everything">Capture everything (ignore the allowlist)</string>
+    <string name="capture_everything_warning">Everything means everything: WhatsApp, SMS, email previews. Use it only long enough to find the Wallet package name, then switch back and purge.</string>
+
+    <string name="allowlist_title">Allowlist — one package name per line</string>
+    <string name="save_allowlist">Save allowlist</string>
+    <string name="allowlist_saved">Allowlist saved</string>
+
+    <string name="export">Export JSONL</string>
+    <string name="purge_non_allowlisted">Purge non-allowlisted</string>
+    <string name="delete_all">Delete everything</string>
+
+    <string name="export_ok">Exported %1$d records</string>
+    <string name="export_failed">Export failed: %1$s</string>
+    <string name="export_empty">Nothing captured yet — nothing to export</string>
+    <string name="purge_confirm_title">Delete captures?</string>
+    <string name="purge_non_allowlisted_message">Deletes every captured record whose package is not on the allowlist. Export first if you have not.</string>
+    <string name="delete_all_message">Deletes every captured record. This cannot be undone. Export first if you have not.</string>
+    <string name="deleted_count">Deleted %1$d records</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+</resources>

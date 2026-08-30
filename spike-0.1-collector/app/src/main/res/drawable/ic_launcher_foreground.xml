@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- A funnel: notifications in the top, a corpus out the bottom. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,34h44l-16,20v20l-12,6v-26z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,26h36v4h-36z" />
+</vector>

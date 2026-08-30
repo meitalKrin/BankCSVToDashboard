@@ -256,29 +256,49 @@ half-understood statement is worse than no statement.
 
 ## 4. Resource budget
 
-512 MB is the design constraint. Rough expectations — **these are estimates to be
-replaced with real measurements in Spike 0.3, not facts**:
+> **Correction, 2026-08-30 — the ceiling is 415 MiB, not 512 MB.**
+> The board has 512 MB, but the VideoCore firmware takes its split before Linux
+> boots and the kernel reserves more on top. On the real hardware, `free -h`
+> reports `total 415Mi`. Roughly 100 MB of the original budget below never
+> existed. Every figure in this section is now stated against 415 MiB.
 
-| Process | Expected resident | Notes |
-| --- | --- | --- |
-| Raspberry Pi OS Lite (64-bit, headless) | 80–120 MB | no desktop, trimmed services |
-| dockerd + containerd | 60–90 MB | |
-| `actual-server` | 120–200 MB | Node; the heavy budget engine runs in *your browser*, not here |
-| `aqueduct-bridge` | 50–80 MB | single uvicorn worker, no reload |
-| `tailscaled` | 25–40 MB | |
-| **Total** | **335–530 MB** | **uncomfortably close to the ceiling** |
+Rough expectations, alongside what has actually been measured. **An estimate is
+not a fact; a dash means nobody has looked yet.**
+
+| Process | Estimated | Measured | Notes |
+| --- | --- | --- | --- |
+| Raspberry Pi OS Lite (64-bit, headless) | 80–120 MB | **137 MiB** | idle, first boot, nothing else installed. Above the estimate |
+| dockerd + containerd | 60–90 MB | — | |
+| `actual-server` | 120–200 MB | — | Node; the heavy budget engine runs in *your browser*, not here |
+| `aqueduct-bridge` | 50–80 MB | — | single uvicorn worker, no reload |
+| `tailscaled` | 25–40 MB | — | |
+| **Total** | **335–530 MB** | — | against **415 MiB**, not 512 |
+
+Baseline on first boot, before Docker: **137 MiB used, 277 MiB `available`**,
+zram present and empty. That 277 MiB is the real headroom the rest of the stack
+has to fit into.
 
 Mitigations, in order of importance:
 
 1. **zram swap** — compressed in-RAM swap. Effectively free capacity for cold
-   pages. Non-optional.
-2. **Batched, short-lived Actual sessions** (§3.4) — keeps the biggest transient
+   pages. Non-optional — **and now automatic**: current Raspberry Pi OS ships
+   `rpi-swap`, which configures `/dev/zram0` (zstd, sized to RAM) and removes the
+   SD swapfile itself. Verify with `swapon --show` and `zramctl`; the older
+   `dphys-swapfile` instructions in the runbook no longer apply.
+2. **Reclaim the GPU split.** On a headless box the VideoCore allocation is close
+   to pure waste. `gpu_mem=16` in `/boot/firmware/config.txt` should return most
+   of it — on the order of 48 MB for one line. Measure `free -h` either side; the
+   KMS display driver can override it. **Pending measurement.**
+3. **Batched, short-lived Actual sessions** (§3.4) — keeps the biggest transient
    allocation out of steady state.
-3. **Per-container `mem_limit`** so one leak degrades one service instead of
-   OOM-killing the ledger.
-4. **Never build images on the Pi.** Cross-build with `buildx` for `linux/arm64`,
+4. **Per-container `mem_limit`** so one leak degrades one service instead of
+   OOM-killing the ledger. ⚠️ Confirm the memory cgroup controller is actually
+   enabled first — `memory` must appear in
+   `/sys/fs/cgroup/cgroup.controllers`. Where it does not, Docker accepts every
+   limit and enforces none of them.
+5. **Never build images on the Pi.** Cross-build with `buildx` for `linux/arm64`,
    or pull prebuilt. A Gradle or pip build on-device will OOM.
-5. **Single uvicorn worker.** Concurrency requirements here are one phone.
+6. **Single uvicorn worker.** Concurrency requirements here are one phone.
 
 ### If Spike 0.3 comes back tight
 

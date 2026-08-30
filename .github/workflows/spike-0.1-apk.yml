@@ -26,6 +26,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # A build this small has no business taking longer than this. A hang that
+    # runs for hours costs minutes and tells you nothing; a timeout leaves logs.
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: spike-0.1-collector
@@ -68,8 +71,14 @@ jobs:
             -storepass android -alias androiddebugkey | grep -i 'SHA256'
           echo "stable=true" >> "$GITHUB_OUTPUT"
 
+      - name: Android SDK contents
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME/platforms" || true
+          ls "$ANDROID_HOME/build-tools" || true
+
       - name: Build
-        run: ./gradlew --no-daemon assembleDebug
+        run: ./gradlew --no-daemon --console=plain --stacktrace assembleDebug
 
       # The no-network property is the reason this app is allowed to read every
       # notification on the phone. Assert it against the built APK, not against

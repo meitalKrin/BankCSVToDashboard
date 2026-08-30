@@ -83,25 +83,74 @@ timedatectl    # Time zone: Asia/Jerusalem, "System clock synchronized: yes"
 timezone silently puts late-evening purchases on the wrong day, which shows up
 later as reconciliation mismatches you'll waste an hour chasing.
 
-### A4 · zram swap, and kill the SD swapfile
+### A4 · zram swap — verify, don't install
 
-**Goal.** Compressed in-RAM swap. On 512 MB this is the difference between
-comfortable and OOM.
+**Goal.** Compressed in-RAM swap, and no swapfile on the SD card.
 
-**Do.** `sudo apt install zram-tools`, configure it (roughly half of RAM as the
-zram device is a sane start), and **disable the default SD-card swapfile**:
-`sudo systemctl disable --now dphys-swapfile`.
+**Do.** Nothing, most likely. Current Raspberry Pi OS ships **`rpi-swap`**, which
+configures `/dev/zram0` (zstd, sized to RAM) and removes the SD swapfile itself.
+The older `zram-tools` + `dphys-swapfile` dance is no longer needed — *measured
+on this hardware, 2026-08-30*.
 
 **Verify.**
 ```bash
-zramctl              # a /dev/zram0 device exists
-swapon --show        # shows /dev/zram0 and NOT /var/swap
-free -h              # Swap row is non-zero
+swapon --show        # /dev/zram0, and NOT /var/swap
+zramctl              # zstd, sized to RAM
+free -h              # Swap row non-zero
 ```
+Only if that comes back empty do you install anything.
 
 **Gotcha.** Swapping to the SD card is slow *and* burns write cycles on the card
 holding your budget. zram lives in RAM — no wear, and compression buys real
-capacity. This is the single highest-value tweak on this box.
+capacity.
+
+---
+
+### A5 · Reclaim the GPU split — +48 MiB for one line
+
+**Goal.** Stop the VideoCore firmware reserving memory a headless box will never use.
+
+**Why it matters.** The board has 512 MB, but the firmware takes its split
+*before* Linux boots. As shipped this Pi reported `total 415Mi` — roughly 100 MB
+that never reached the OS.
+
+**Do.** Add `gpu_mem=16` to `/boot/firmware/config.txt`, reboot.
+
+**Verify.**
+```bash
+free -h              # total should rise ~415Mi → ~463Mi
+vcgencmd get_mem arm ; vcgencmd get_mem gpu
+```
+
+**Measured here:** `total` 415 MiB → **463 MiB**, `available` 277 → **319 MiB**.
+The cheapest win on the whole box. The KMS display driver can override this on
+some setups — check `free -h`, don't assume.
+
+---
+
+### A6 · Enable the memory cgroup controller — or every `mem_limit` is a lie
+
+**Goal.** Make Docker's memory limits actually enforce something.
+
+**Why it matters.** ⚠️ **On a stock Pi OS install this is off, and Docker does
+not warn you.** It accepts every `mem_limit` you write and enforces none of them.
+Confirmed on this hardware: `cgroup.controllers` listed only `cpuset cpu io pids`.
+
+**Do.** Append `cgroup_enable=memory cgroup_memory=1` to the **single line** in
+`/boot/firmware/cmdline.txt` (it must stay one line), then reboot.
+
+**Verify.**
+```bash
+cat /sys/fs/cgroup/cgroup.controllers    # must now include: memory
+grep -o 'cgroup[^ ]*' /proc/cmdline      # what the kernel ACTUALLY got
+```
+
+**The gotcha worth understanding.** The firmware **prepends**
+`cgroup_disable=memory` to the kernel command line, and that string appears
+nowhere in `cmdline.txt`. After the fix `/proc/cmdline` contains *both* — the
+firmware's early, yours late — and the later one wins. `cmdline.txt` is a
+*request*; `/proc/cmdline` is what the kernel was actually handed. **Verify
+against the latter, always.** This generalises well beyond the Pi.
 
 ---
 
@@ -147,6 +196,7 @@ sudo reboot         # then check findmnt again — it must survive
 docker run --rm hello-world                      # works WITHOUT sudo
 docker version --format '{{.Server.Arch}}'       # → arm64
 docker compose version                           # the plugin, not docker-compose
+docker info 2>&1 | grep -i "no swap limit\|memory limit"   # should NOT warn, if A6 is done
 ```
 
 ### C2 · Log rotation — do this before you forget

@@ -256,27 +256,40 @@ half-understood statement is worse than no statement.
 
 ## 4. Resource budget
 
-> **Correction, 2026-08-30 — the ceiling is 415 MiB, not 512 MB.**
-> The board has 512 MB, but the VideoCore firmware takes its split before Linux
-> boots and the kernel reserves more on top. On the real hardware, `free -h`
-> reports `total 415Mi`. Roughly 100 MB of the original budget below never
-> existed. Every figure in this section is now stated against 415 MiB.
+> **Correction, 2026-08-30 — the ceiling is 463 MiB, and it was 415 MiB before
+> tuning. Never 512.** The board has 512 MB, but the VideoCore firmware takes
+> its split before Linux boots and the kernel reserves more on top. As shipped,
+> `free -h` reported `total 415Mi` (firmware split: `arm=448M`, `gpu=64M`).
+> Setting `gpu_mem=16` on this headless box moved that to `arm=496M` and
+> `total 463Mi`. Roughly 50 MB of the original budget below never existed even
+> after tuning. Every figure here is now stated against **463 MiB**.
 
 Rough expectations, alongside what has actually been measured. **An estimate is
 not a fact; a dash means nobody has looked yet.**
 
 | Process | Estimated | Measured | Notes |
 | --- | --- | --- | --- |
-| Raspberry Pi OS Lite (64-bit, headless) | 80–120 MB | **137 MiB** | idle, first boot, nothing else installed. Above the estimate |
-| dockerd + containerd | 60–90 MB | — | |
-| `actual-server` | 120–200 MB | — | Node; the heavy budget engine runs in *your browser*, not here |
+| Raspberry Pi OS Lite (64-bit, headless) | 80–120 MB | **143 MiB** | idle, post-boot, nothing else installed. **Over** the estimate |
+| dockerd + containerd | 60–90 MB | **42 MiB** | comfortably under |
+| `actual-server` | 120–200 MB | **48 MiB** | ⚠️ idle, empty budget, no active sync. Expect this to grow — but the estimate was out by 3–4× because the heavy budget engine really does run in *your browser*, not here |
 | `aqueduct-bridge` | 50–80 MB | — | single uvicorn worker, no reload |
 | `tailscaled` | 25–40 MB | — | |
-| **Total** | **335–530 MB** | — | against **415 MiB**, not 512 |
+| **Running total** | — | **233 MiB** | of 463 MiB. **230 MiB still `available`** |
 
-Baseline on first boot, before Docker: **137 MiB used, 277 MiB `available`**,
-zram present and empty. That 277 MiB is the real headroom the rest of the stack
-has to fit into.
+Baseline after tuning, before Docker: **143 MiB used, 319 MiB `available`**,
+zram present (462 MiB, zstd) and empty.
+
+With Docker and `actual-server` both up and healthy: **233 MiB used, 230 MiB
+`available`**, 50 MiB of zram in use.
+
+**The conclusion the measurements force:** the estimates were wrong in both
+directions, and the pessimism was misplaced. Against 230 MiB of remaining
+headroom, `tailscaled` (25–40 MB) and the bridge (50–80 MB) leave roughly
+110 MiB spare. The "uncomfortably close to the ceiling" worry above does not
+survive contact with the hardware. What remains genuinely unknown is how
+`actual-server` grows under a real budget file with active sync — that is what
+the G4 soak is for, and it is the only number here still worth being nervous
+about.
 
 Mitigations, in order of importance:
 
@@ -286,16 +299,25 @@ Mitigations, in order of importance:
    SD swapfile itself. Verify with `swapon --show` and `zramctl`; the older
    `dphys-swapfile` instructions in the runbook no longer apply.
 2. **Reclaim the GPU split.** On a headless box the VideoCore allocation is close
-   to pure waste. `gpu_mem=16` in `/boot/firmware/config.txt` should return most
-   of it — on the order of 48 MB for one line. Measure `free -h` either side; the
-   KMS display driver can override it. **Pending measurement.**
+   to pure waste. **Done and measured:** `gpu_mem=16` in
+   `/boot/firmware/config.txt` moved `total` from 415 MiB to 463 MiB and
+   `available` from 277 MiB to 319 MiB — **+48 MiB for one line**, the cheapest
+   win on the box. The KMS driver did not override it here.
 3. **Batched, short-lived Actual sessions** (§3.4) — keeps the biggest transient
    allocation out of steady state.
 4. **Per-container `mem_limit`** so one leak degrades one service instead of
-   OOM-killing the ledger. ⚠️ Confirm the memory cgroup controller is actually
-   enabled first — `memory` must appear in
-   `/sys/fs/cgroup/cgroup.controllers`. Where it does not, Docker accepts every
-   limit and enforces none of them.
+   OOM-killing the ledger. ⚠️ **This does nothing on a stock Pi OS install.**
+   Confirmed on this hardware: `/sys/fs/cgroup/cgroup.controllers` listed only
+   `cpuset cpu io pids`. Docker accepts every limit and enforces none of them.
+   The fix is `cgroup_enable=memory cgroup_memory=1` appended to the single line
+   in `/boot/firmware/cmdline.txt`, then a reboot.
+
+   The reason it is not simply "add it to the file" is worth knowing: the
+   firmware **prepends** `cgroup_disable=memory` to the kernel command line, and
+   that string appears nowhere in `cmdline.txt`. After the fix, `/proc/cmdline`
+   contains both — the firmware's `cgroup_disable=memory` early, and ours late —
+   and the later one wins. `cmdline.txt` is a request; `/proc/cmdline` is what
+   the kernel was actually given. Verify against the latter, always.
 5. **Never build images on the Pi.** Cross-build with `buildx` for `linux/arm64`,
    or pull prebuilt. A Gradle or pip build on-device will OOM.
 6. **Single uvicorn worker.** Concurrency requirements here are one phone.
